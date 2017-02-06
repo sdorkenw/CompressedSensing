@@ -3,8 +3,8 @@
 This work was performed as a part of the Advanced Seminar (Computer Engineering Master, Heidelberg University) under the supervision of Prof. Dr. Peter Fischer. <br /> <br />
 
 
-Suggested talks
----------------
+Suggested talks / videos
+------------------------
 Richard Baraniuk: <br />
 https://www.youtube.com/watch?v=RvMgVv-xZhQ <br />
 https://www.youtube.com/watch?v=kWLfxFCqR0I <br />

@@ -2,8 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 
-def plot_hist(data, x_ticks=None, xlabel=None, ylabel=None,
-              x_min=None, x_max=None, save_path=None):
+def plot_hist(data, x_ticks=None, xlabel=None, ylabel=None, save_path=None):
     """ Plots a histogram
 
     :param data: 1d arr
@@ -64,7 +63,7 @@ def plot_1d(x, y, xlabel, ylabel, save_path=None):
         x label
     :param ylabel: str
         y label
-    :param save_path:
+    :param save_path: str
         save path
         if None: plot is shown
     """
@@ -96,7 +95,7 @@ def plot_1d(x, y, xlabel, ylabel, save_path=None):
     plt.close()
 
 
-def plot_img(img, save_path=None, cmap="jet"):
+def plot_img(img, save_path=None, vmin=None, vmax=None, cmap="jet"):
     """ 2D plot
 
     :param img: 2d array
@@ -104,18 +103,26 @@ def plot_img(img, save_path=None, cmap="jet"):
     :param save_path: str
         save path
         if None: plot is shown
+    :param vmin: int
+        minimum of colormap
+    :param vmax: int
+        maximum of colormap
+    :param cmap: str
+        colormap (choose from plt.colormaps())
     """
-    if np.min(img) < -1:
-        vmin = -255
-    elif np.min(img) < 0:
-        vmin = -1
-    else:
-        vmin = 0
+    if not vmin:
+        if np.min(img) < -1:
+            vmin = -255
+        elif np.min(img) < 0:
+            vmin = -1
+        else:
+            vmin = 0
 
-    if np.max(img) > 1:
-        vmax = 255
-    else:
-        vmax = 1
+    if not vmax:
+        if np.max(img) > 1:
+            vmax = 255
+        else:
+            vmax = 1
 
     fig, ax = plt.subplots(1, 1)
     fig.patch.set_facecolor('white')

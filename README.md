@@ -1,2 +1,2 @@
-# CompressedSensingSeminar
-Code, presentation and sources
+# Seminar work on Compressed Sensing
+

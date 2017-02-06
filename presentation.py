@@ -3,12 +3,13 @@ import os
 from scipy.fftpack import fft
 from scipy.misc import imread, imsave
 import sklearn.linear_model as lm
+import sys
 
 import utils
 import plotting
 
 
-def simple_signal(save_path):
+def simple_signal(save_path=None):
     """ Superposition of 3 sinus waves in Time and Frequency domain
 
     :param save_path: str
@@ -61,23 +62,24 @@ def img_signal(img_path, compression_rate=.9, save_path=None, wvt_level=4):
         level of wavelet transform
     """
     assert 0 < compression_rate < 1
+    assert os.path.exists(img_path)
 
     img = imread(img_path)
 
     if len(img.shape) > 2:
         img = np.mean(img, axis=-1)
 
-    off = [(img.shape[0] % 2 ** wvt_level) / 2.,
-           (img.shape[1] % 2 ** wvt_level) / 2.]
+    off = [int((img.shape[0] % 2 ** wvt_level) / 2.),
+           int((img.shape[1] % 2 ** wvt_level) / 2.)]
 
-    img = img[np.floor(off[0]): img.shape[0] - np.ceil(off[0]),
-              np.floor(off[1]): img.shape[1] - np.ceil(off[1])]
+    img = img[int(np.floor(off[0])): int(img.shape[0] - np.ceil(off[0])),
+              int(np.floor(off[1])): int(img.shape[1] - np.ceil(off[1]))]
 
     if save_path:
         imsave(save_path + os.path.basename(img_path)[:-4] + "_cropped.png",
                img)
 
-    print("Cropped image to: ", img.shape)
+    print "Cropped image to: ", img.shape
 
     img_dw = utils.dwt2(img, level=wvt_level)
 
@@ -86,7 +88,8 @@ def img_signal(img_path, compression_rate=.9, save_path=None, wvt_level=4):
     else:
         this_save_path = None
 
-    plotting.plot_img(img_dw, save_path=this_save_path)
+    plotting.plot_img(img_dw, save_path=this_save_path,
+                      vmin=np.min(img_dw), vmax=np.max(img_dw))
 
     coeff = img_dw.flatten()
     abs_sorting = np.argsort(np.abs(coeff))
@@ -114,19 +117,26 @@ def img_signal(img_path, compression_rate=.9, save_path=None, wvt_level=4):
     if this_save_path:
         imsave(this_save_path, img_idw)
     else:
-        plotting.plot_img(img_idw, save_path=this_save_path)
+        plotting.plot_img(img_idw, save_path=this_save_path, cmap="gray")
 
     if save_path:
         this_save_path = save_path + "/img_diff_idwt.png"
     else:
         this_save_path = None
 
-    plotting.plot_img(np.abs(img-img_idw) / img, save_path=this_save_path)
+    rel_diff = np.abs(img-img_idw) / img
+    plotting.plot_img(rel_diff, save_path=this_save_path,
+                      vmin=np.min(rel_diff), vmax=np.max(rel_diff))
+
+    print("rmse: %.6f" % (utils.compute_rmse(img, img_idw)))
 
 
 def explain_regularization(save_path=None):
     """ Illustrate effect of Lasso, Ridge, pseudoinverse on underconstrained
     optimization problem
+
+    Idea for example taken from Steven Brunton:
+    https://www.youtube.com/watch?v=aHCyHbRIz44&t=1176s
 
     :param save_path: str
         path to folder to which images will be exported
@@ -162,3 +172,14 @@ def explain_regularization(save_path=None):
         print key, " - Error: %.5f" % np.sum(np.abs(np.dot(A, xs[key]) - b)), \
             "Number of nonzero elements: %d" % len(np.nonzero(xs[key])[0])
 
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print("Usage for plotting all figures: python2 presentation.py "
+              "<path_to_img> <path_to_save_folder>")
+    else:
+        img_path = sys.argv[1]
+        save_path = sys.argv[2]
+
+        explain_regularization(save_path=save_path)
+        img_signal(img_path=img_path, save_path=save_path)
+        simple_signal(save_path=save_path)

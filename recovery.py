@@ -167,7 +167,7 @@ def recover_blocks(img, mask, blocksize=32, wvt_level=3, alpha=None,
 
 
 def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
-         wvt_level=5, save_path=None, blocksize=32, n_processes=None):
+                 wvt_level=5, save_path=None, blocksize=32, n_processes=None):
     """ Recoveres an image and performs assisting work
 
     :param img_path: str
@@ -209,6 +209,11 @@ def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
     img = img[int(np.floor(off[0])): img.shape[0] - int(np.ceil(off[0])),
               int(np.floor(off[1])): img.shape[1] - int(np.ceil(off[1]))]
 
+    if (3 + wvt_level)**2 > blocksize:
+        print "Blocksize is too small for chosen wavelet level..."
+        wvt_level = int(np.log2(blocksize)) - 3
+        print "... chose %d as wavelet level instead." % wvt_level
+
     print("Cropped image to: ", img.shape)
 
     mask = sampling_mask(img.shape, rate=corruption_rate)
@@ -219,7 +224,8 @@ def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
     d_img[mask] = 0
 
     r_img = recover_blocks(d_img.copy(), mask.copy(), alpha=alpha,
-                           blocksize=blocksize, n_processes=n_processes)
+                           blocksize=blocksize, n_processes=n_processes,
+                           wvt_level=wvt_level)
     r_img[r_img < 0] = 0
     neg_mask = np.invert(mask)
 
@@ -264,25 +270,25 @@ if __name__ == "__main__":
     if len(sys.argv) not in [3, 4]:
         print("Usage for parameter swiping: python2 recovery.py <path_to_img> "
               "<path_to_save_folder> [<blocksize>]")
-
-    assert os.path.exists(sys.argv[1])
-    img_path = sys.argv[1]
-
-    assert os.path.exists(sys.argv[2])
-    save_path = sys.argv[2]
-
-    if len(sys.argv) == 4:
-        blocksizes = [int(sys.argv[3])]
     else:
-        blocksizes = [16, 32, 64]
+        assert os.path.exists(sys.argv[1])
+        img_path = sys.argv[1]
 
-    alphas = list(np.logspace(-7, 1, num=20))
-    corruption_rates = [i / 10. for i in range(1, 10)] + [.95, .99]
+        assert os.path.exists(sys.argv[2])
+        save_path = sys.argv[2]
 
-    for cr in corruption_rates:
-        for b in blocksizes:
-            for a in alphas:
-                recover_main(img_path=img_path, corruption_rate=cr, alpha=a,
-                             blocksize=b, save_path=save_path)
+        if len(sys.argv) == 4:
+            blocksizes = [int(sys.argv[3])]
+        else:
+            blocksizes = [16, 32, 64]
 
-        utils.compute_rmse_folder(save_path + "/cr_%d/" % cr)
+        alphas = list(np.logspace(-7, 1, num=20))
+        corruption_rates = [i / 10. for i in range(1, 10)] + [.95, .99]
+
+        for cr in corruption_rates:
+            for b in blocksizes:
+                for a in alphas:
+                    recover_main(img_path=img_path, corruption_rate=cr, alpha=a,
+                                 blocksize=b, save_path=save_path)
+
+            utils.compute_rmse_folder(save_path + "/cr_%d/" % cr)

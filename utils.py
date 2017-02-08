@@ -8,6 +8,22 @@ import scipy.sparse
 from scipy.fftpack import dct, idct
 
 
+def decrease_SNR(img, rate=0.05):
+    """ Reduces SNR
+
+    :param img: 2d array
+        image
+    :param rate: float
+        rate of noise
+    :return: 2d array
+        noisy image
+    """
+    img_n = img.copy().astype(np.float32)
+    if np.max(img_n) > 1:
+        img_n /= 255
+    return img_n + rate * np.random.randn(*img.shape)
+
+
 def compute_rmse(true_img, rec_img):
     """ Computes rmse for an image regarding its true image
 

@@ -32,7 +32,7 @@ def sampling_mask(shape, rate=0.5):
     return mask.reshape(shape)
 
 
-def recovery_single(img, mask, basis="wvt", wvt_level=3, alpha=None):
+def recovery_single(img, mask, basis="dct", wvt_level=3, alpha=None):
     """ Recovers image
 
     :param img: 2d array
@@ -167,7 +167,7 @@ def recover_blocks(img, mask, blocksize=32, wvt_level=3, alpha=None,
 
 
 def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
-                 wvt_level=5, save_path=None, blocksize=32, n_processes=None):
+                 wvt_level=3, save_path=None, blocksize=32, n_processes=None):
     """ Recoveres an image and performs assisting work
 
     :param img_path: str

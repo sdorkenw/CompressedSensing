@@ -73,7 +73,7 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
 
 
 def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
-               basis="wvt", save_path=None):
+               add_noise=True, basis="dct", save_path=None):
     """ Senses an image with k measurements and performs assisting work
 
     :param img_path: str
@@ -87,6 +87,8 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
         if None: alpha is first found with CV (takes long)
     :param wvt_level: int
         level of wavelet transform
+    :param add_noise: bool
+        adds random noise to the image to reduce SNR
     :param basis: str
         either 'wvt', 'dct'
     :param save_path: str
@@ -105,21 +107,30 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
     if zoom_rate != 1:
         img = scipy.ndimage.zoom(img, zoom=zoom_rate, order=3)
 
-    off = [(img.shape[0] % 2 ** wvt_level) / 2.,
-           (img.shape[1] % 2 ** wvt_level) / 2.]
+    if basis == "wvt":
+        off = [(img.shape[0] % 2 ** wvt_level) / 2.,
+               (img.shape[1] % 2 ** wvt_level) / 2.]
 
-    img = img[int(np.floor(off[0])): img.shape[0] - int(np.ceil(off[0])),
-              int(np.floor(off[1])): img.shape[1] - int(np.ceil(off[1]))]
+        img = img[int(np.floor(off[0])): img.shape[0] - int(np.ceil(off[0])),
+                  int(np.floor(off[1])): img.shape[1] - int(np.ceil(off[1]))]
 
-    print "Cropped image to: ", img.shape
+        print "Cropped image to: ", img.shape
 
-    img = img.astype(np.float16) / np.max(img)
+        img = img.astype(np.float16) / np.max(img)
 
-    r_img = sense(img.copy(), k=k, alpha=alpha, wvt_level=wvt_level,
-                  basis=basis)
+    if add_noise:
+        r_img = sense(utils.decrease_SNR(img), k=k, alpha=alpha,
+                      wvt_level=wvt_level, basis=basis)
+    else:
+        r_img = sense(img.copy(), k=k, alpha=alpha, wvt_level=wvt_level,
+                      basis=basis)
+    if basis == "dct":
+        r_img[:, 0] = r_img[:, 1]
+        r_img[0, :] = r_img[1, :]
     r_img[r_img < 0] = 0
 
-    print "rmse: %.3f" % (utils.compute_rmse(img, r_img))
+    rmse = utils.compute_rmse(img, r_img)
+    print "rmse: %.3f" % (rmse)
     print "Sensing rate: %.3f" % (float(k) / np.product(img.shape))
 
     if save_path:
@@ -131,8 +142,10 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
 
-            imsave(save_path + "/rec_k%d_a%d.png" % (k, alpha_s), r_img)
-            imsave(save_path + "/img_k%d_a%d.png" % (k, alpha_s), img)
+            imsave(save_path + "/rec_k%d_a%d_r%d.png" %
+                   (k, alpha_s, rmse*10000), r_img)
+            imsave(save_path + "/img_k%d_a%d_r%d.png" %
+                   (k, alpha_s, rmse*10000), img)
     else:
         plt.clf()
         fig, axarr = plt.subplots(2, 1)
@@ -144,24 +157,29 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
 
 
 def _sense_thread(args):
-    sense_main(img_path=args[0], k=args[1], alpha=args[2], wvt_level=args[3],
-               basis=args[4], save_path=args[5])
+    sense_main(img_path=args[0], zoom_rate=args[1], k=args[2], alpha=args[3],
+               save_path=args[4], wvt_level=args[6], add_noise=args[7],
+               basis=args[8])
 
 
-def sense_multiple(ks, alphas, folder, img_path, wvt_level=4, basis="wvt",
-                   n_processes=None):
+def sense_multiple(img_path, ks, alphas, folder, zoom_rate=1., wvt_level=4,
+                   add_noise=False, basis="wvt", n_processes=None):
     """ Senses multiple images with k(s) measuerements and alpha(s)
 
+    :param img_path: str
+        path to image
     :param ks: list of int
         numbers of measurements
     :param alphas: list of float
         regularization parameter
     :param folder: str
         path to folder to which images will be exported to
-    :param img_path: str
-        path to image
+    :param zoom_rate: float
+        image rescaling factor
     :param wvt_level: int
         level of wavelet transform
+    :param add_noise: bool
+        adds random noise to the image to reduce SNR
     :param basis: str
         either 'wvt', 'dct'
     :param n_processes:int or None
@@ -179,7 +197,8 @@ def sense_multiple(ks, alphas, folder, img_path, wvt_level=4, basis="wvt",
     params = []
     for k in ks:
         for a in alphas:
-            params.append([img_path, k, a, wvt_level, folder])
+            params.append([img_path, zoom_rate, k, a, folder, wvt_level,
+                           add_noise, basis])
 
     print "N jobs: %d" % (len(params))
     if n_processes > 1:
@@ -207,6 +226,6 @@ if __name__ == '__main__':
 
         ks = [8000, 16000, 24000]
         alphas = np.logspace(-7, 0, num=8)
-        sense_multiple(ks, alphas, folder=folder, img_path=img_path,
+        sense_multiple(img_path, ks, alphas, folder=folder,
                        basis=basis)
         utils.compute_rmse_folder(folder)

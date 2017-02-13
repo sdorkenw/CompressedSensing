@@ -135,7 +135,7 @@ def explain_regularization(save_path=None):
     """ Illustrate effect of Lasso, Ridge, pseudoinverse on underconstrained
     optimization problem
 
-    Idea for example taken from Steven Brunton:
+    Idea for this example was taken from Steven Brunton:
     https://www.youtube.com/watch?v=aHCyHbRIz44&t=1176s
 
     :param save_path: str

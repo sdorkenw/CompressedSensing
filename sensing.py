@@ -158,8 +158,8 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
 
 def _sense_thread(args):
     sense_main(img_path=args[0], zoom_rate=args[1], k=args[2], alpha=args[3],
-               save_path=args[4], wvt_level=args[6], add_noise=args[7],
-               basis=args[8])
+               save_path=args[4], wvt_level=args[5], add_noise=args[6],
+               basis=args[7])
 
 
 def sense_multiple(img_path, ks, alphas, folder, zoom_rate=1., wvt_level=4,
@@ -224,7 +224,8 @@ if __name__ == '__main__':
         else:
             basis = "wvt"
 
-        ks = [8000, 16000, 24000]
+        # ks = [8000, 16000, 24000]
+        ks = [int(ratio*288.**2) for ratio in [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]]
         alphas = np.logspace(-7, 0, num=8)
         sense_multiple(img_path, ks, alphas, folder=folder,
                        basis=basis)

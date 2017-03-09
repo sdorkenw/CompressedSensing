@@ -50,16 +50,16 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
     A = None
 
     if alpha:
-        lasso = lm.Lasso(alpha=alpha, max_iter=100000, normalize=True)
+        lasso = lm.LassoLars(alpha=alpha, max_iter=100000, normalize=True)
         print "Fit"
         lasso.fit(trans_A, b)
     else:
-        lasso_cv = lm.LassoCV(n_jobs=cpu_count(), max_iter=100000,
+        lasso_cv = lm.LassoLarsCV(n_jobs=cpu_count(), max_iter=100000,
                               normalize=True)
         print "Fit"
         lasso_cv.fit(trans_A, b)
         print "Alpha: %.6f" % lasso_cv.alpha_
-        lasso = lm.Lasso(alpha=lasso_cv.alpha_, max_iter=100000,
+        lasso = lm.LassoLars(alpha=lasso_cv.alpha_, max_iter=100000,
                          normalize=True)
         print "Fit"
         lasso.fit(trans_A, b)

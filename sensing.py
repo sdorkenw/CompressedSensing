@@ -216,7 +216,7 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
             imsave(save_path[:-4] + "_true.png", img)
         else:
             if alpha is None:
-                alpha = "best"
+                alpha_s = "best"
             else:
                 alpha_s = str(int(alpha * 1e9))
             if not os.path.exists(save_path):

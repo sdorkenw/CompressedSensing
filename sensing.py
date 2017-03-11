@@ -28,8 +28,10 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
     :return: 2d array
         sensed image
     """
+    print "Image size:", img.shape
     img_f = img.flatten()
     print "Build sensing matrix"
+
     A = np.random.normal(0, 1, len(img_f)*k).astype(np.float32).\
         reshape(k, img.shape[0], img.shape[1])
 
@@ -50,16 +52,16 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
     A = None
 
     if alpha:
-        lasso = lm.LassoLars(alpha=alpha, max_iter=100000, normalize=True)
+        lasso = lm.Lasso(alpha=alpha, max_iter=100000, normalize=True)
         print "Fit"
         lasso.fit(trans_A, b)
     else:
-        lasso_cv = lm.LassoLarsCV(n_jobs=cpu_count(), max_iter=100000,
+        lasso_cv = lm.LassoCV(n_jobs=cpu_count(), max_iter=100000,
                               normalize=True)
         print "Fit"
         lasso_cv.fit(trans_A, b)
         print "Alpha: %.6f" % lasso_cv.alpha_
-        lasso = lm.LassoLars(alpha=lasso_cv.alpha_, max_iter=100000,
+        lasso = lm.Lasso(alpha=lasso_cv.alpha_, max_iter=100000,
                          normalize=True)
         print "Fit"
         lasso.fit(trans_A, b)
@@ -70,6 +72,74 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
         return utils.idct2(lasso.coef_.reshape(img.shape))
     else:
         raise Exception("Unknown basis")
+
+
+def _sense_block_thread(args):
+    rec = sense(args[1], args[2], wvt_level=args[3], basis=args[4],
+                alpha=args[5])
+    return args[0], rec
+
+
+def sense_blocks(img, ratio, blocksize=64, wvt_level=3, alpha=None,
+                 basis="wvt", n_processes=None):
+    """ Recovers image parallel with blocking
+
+    :param img: 2d array
+        image
+    :param mask: 2d bool array
+        mask
+    :param blocksize: int
+        defines edgelength of blocking squares
+    :param wvt_level: int
+        level of wavelet transform
+    :param alpha: float or None
+        regularization parameter
+        if None: alpha is first found with CV (takes long)
+    :param n_processes: int or None
+        number of processes to be used
+        if None: all cores are used
+    :return: 2d array
+        recovered image
+    """
+    if not n_processes:
+        n_processes = cpu_count()
+
+    my_img = np.pad(img, [[blocksize/2, blocksize/2],
+                          [blocksize/2, blocksize/2]], mode="reflect")
+
+    k = int((blocksize/2)**2 * ratio)
+
+    params = []
+
+    for x_pos in range(0, my_img.shape[0]-blocksize/2, blocksize/2):
+        for y_pos in range(0, my_img.shape[1]-blocksize/2, blocksize/2):
+            params.append([[x_pos, y_pos],
+                           my_img[x_pos: x_pos + blocksize,
+                                  y_pos: y_pos + blocksize],
+                           k, wvt_level, basis, alpha])
+
+    print("N jobs: %d" % (len(params)))
+    if n_processes > 1:
+        pool = Pool(n_processes)
+        results = pool.map(_sense_block_thread, params)
+        pool.close()
+        pool.join()
+    else:
+        results = map(_sense_block_thread, params)
+
+    r_img = np.zeros(my_img.shape, dtype=np.float32)
+    normalization = np.zeros(my_img.shape, dtype=np.float16)
+    for result in results:
+        r_img[result[0][0] + blocksize/4: result[0][0] + blocksize*3/4,
+              result[0][1] + blocksize/4: result[0][1] + blocksize*3/4] += \
+            result[1][blocksize/4: blocksize*3/4, blocksize/4:blocksize*3/4]
+        normalization[result[0][0] + blocksize/4:
+                                            result[0][0] + blocksize*3/4,
+                      result[0][1] + blocksize/4:
+                                            result[0][1] + blocksize*3/4] += 1
+
+    r_img /= normalization
+    return r_img[blocksize/2: -blocksize/2, blocksize/2: -blocksize/2]
 
 
 def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
@@ -119,11 +189,18 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
         img = img.astype(np.float16) / np.max(img)
 
     if add_noise:
-        r_img = sense(utils.decrease_SNR(img), k=k, alpha=alpha,
-                      wvt_level=wvt_level, basis=basis)
+        nsy_img = utils.decrease_SNR(img)
     else:
-        r_img = sense(img.copy(), k=k, alpha=alpha, wvt_level=wvt_level,
+        nsy_img = img
+
+    if True:
+        r_img = sense(nsy_img.copy(), k=k, alpha=alpha, wvt_level=wvt_level,
                       basis=basis)
+    else:
+        r_img = sense_blocks(nsy_img.copy(),
+                             ratio=float(k) / np.product(img.shape),
+                             alpha=alpha, wvt_level=wvt_level, basis=basis)
+
     if basis == "dct":
         r_img[:, 0] = r_img[:, 1]
         r_img[0, :] = r_img[1, :]
@@ -138,13 +215,16 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
             imsave(save_path, r_img)
             imsave(save_path[:-4] + "_true.png", img)
         else:
-            alpha_s = int(alpha * 1e9)
+            if alpha is None:
+                alpha = "best"
+            else:
+                alpha_s = str(int(alpha * 1e9))
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
 
-            imsave(save_path + "/rec_k%d_a%d_r%d.png" %
+            imsave(save_path + "/rec_k%d_a%s_r%d.png" %
                    (k, alpha_s, rmse*10000), r_img)
-            imsave(save_path + "/img_k%d_a%d_r%d.png" %
+            imsave(save_path + "/img_k%d_a%s_r%d.png" %
                    (k, alpha_s, rmse*10000), img)
     else:
         plt.clf()
@@ -224,8 +304,8 @@ if __name__ == '__main__':
         else:
             basis = "wvt"
 
-        # ks = [8000, 16000, 24000]
-        ks = [int(ratio*288.**2) for ratio in [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]]
+        ks = [int(ratio*288.**2) for ratio in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25,
+                                               0.3, 0.35, 0.4]]
         alphas = np.logspace(-7, 0, num=8)
         sense_multiple(img_path, ks, alphas, folder=folder,
                        basis=basis)

@@ -52,7 +52,8 @@ def plot_hist(data, x_ticks=None, xlabel=None, ylabel=None, save_path=None):
     plt.close()
 
 
-def plot_1d(x, y, xlabel, ylabel, save_path=None):
+def plot_1d(xs, ys, xlabel, ylabel, xlim=None, ylim=None, labels=None,
+            save_path=None):
     """ 1D plot
 
     :param x: list of values
@@ -81,10 +82,33 @@ def plot_1d(x, y, xlabel, ylabel, save_path=None):
     ax.tick_params(axis='x', which='minor', labelsize=22, direction='out',
                    length=0, width=0, right="off", top="off", pad=10)
 
-    ax.plot(x, y, lw=2, c="k")
+    if not isinstance(xs[0], list):
+        xs = [xs]
+    if not isinstance(ys[0], list):
+        ys = [ys]
+
+    colors = ["k", "0.6", "0.3", "0.8"]
+
+    for i_line in range(len(xs)):
+        x = xs[i_line]
+        y = ys[i_line]
+        if labels is not None:
+            ax.plot(x, y, lw=3, c=colors[i_line % len(colors)],
+                    label=labels[i_line])
+        else:
+            ax.plot(x, y, lw=3, c=colors[i_line % len(colors)])
 
     ax.set_xlabel(xlabel, fontsize=26)
     ax.set_ylabel(ylabel, fontsize=26)
+
+    if labels is not None:
+        legend = ax.legend(loc='best', shadow=False, frameon=False,
+                           fontsize=22)
+
+    if xlim:
+        ax.set_xlim(xlim)
+    if ylim:
+        ax.set_ylim(ylim)
 
     plt.tight_layout()
 

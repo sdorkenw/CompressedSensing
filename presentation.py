@@ -172,6 +172,39 @@ def explain_regularization(save_path=None):
         print key, " - Error: %.5f" % np.sum(np.abs(np.dot(A, xs[key]) - b)), \
             "Number of nonzero elements: %d" % len(np.nonzero(xs[key])[0])
 
+
+def recovery_rmse(save_path=None):
+    corruption_ratio = [i / 10. for i in range(1, 10)]
+    rmses = [0.00611, 0.00974, 0.0139, 0.0197, 0.0357, 0.0426, 0.0630,
+             0.0773, 0.116]
+
+    if save_path:
+        this_save_path = save_path + "/recovery_rmse.png"
+    else:
+        this_save_path = None
+
+    plotting.plot_1d(corruption_ratio, rmses, "Corruption Ratio", "RMSE",
+                     xlim=[0, 1], ylim=[0, np.max(rmses)*1.05],
+                     save_path=this_save_path)
+
+
+def sense_rmse(save_path=None):
+    ratios = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4]
+    rmse_dct = [0.202427, 0.113041, 0.084581, 0.055587, 0.040574, 0.030210]
+    rmse_wvt = [0.625853, 0.263807, 0.133097, 0.062343, 0.034056, 0.021254]
+
+    if save_path:
+        this_save_path = save_path + "/sense_rmse.png"
+    else:
+        this_save_path = None
+
+    plotting.plot_1d([ratios, ratios], [rmse_dct, rmse_wvt],
+                     "Measurement ratio", "RMSE",
+                     xlim=[0, .45], ylim=[0, 0.22],
+                     labels=["DCT", "WT"],
+                     save_path=this_save_path)
+
+
 if __name__ == '__main__':
     if len(sys.argv) != 3:
         print("Usage for plotting all figures: python2 presentation.py "

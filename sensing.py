@@ -204,7 +204,9 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
     if basis == "dct":
         r_img[:, 0] = r_img[:, 1]
         r_img[0, :] = r_img[1, :]
+
     r_img[r_img < 0] = 0
+    r_img[r_img > 255] = 255
 
     rmse = utils.compute_rmse(img, r_img)
     print "rmse: %.3f" % (rmse)
@@ -306,7 +308,7 @@ if __name__ == '__main__':
 
         ks = [int(ratio*288.**2) for ratio in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25,
                                                0.3, 0.35, 0.4]]
-        alphas = np.logspace(-7, 0, num=8)
+        alphas = np.logspace(-7, 2, num=9)
         sense_multiple(img_path, ks, alphas, folder=folder,
                        basis=basis)
         utils.compute_rmse_folder(folder)

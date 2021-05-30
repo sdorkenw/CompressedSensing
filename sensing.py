@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 from multiprocessing import Pool
 from multiprocessing import cpu_count
 import numpy as np
-from scipy.misc import imread, imsave
+from imageio import imread, imwrite
 import scipy.ndimage
 import sklearn.linear_model as lm
 import sys
@@ -28,22 +28,22 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
     :return: 2d array
         sensed image
     """
-    print "Image size:", img.shape
+    print ("Image size:", img.shape )
     img_f = img.flatten()
-    print "Build sensing matrix"
+    print ("Build sensing matrix")
 
     A = np.random.normal(0, 1, len(img_f)*k).astype(np.float32).\
         reshape(k, img.shape[0], img.shape[1])
 
-    print "Measurement"
+    print ("Measurement")
     b = np.dot(A.reshape(k, len(img_f)), img_f)
 
     if basis == "wvt":
-        print "Wavelets"
+        print ("Wavelets")
         trans_A = [utils.dwt2(A[i].reshape(img.shape), level=wvt_level).
                      astype(np.float16).flatten() for i in range(k)]
     elif basis == "dct":
-        print "DCT"
+        print ("DCT" )
         trans_A = [utils.dct2(A[i].reshape(img.shape)).
                        astype(np.float16).flatten() for i in range(k)]
     else:
@@ -53,17 +53,17 @@ def sense(img, k=1000, basis="wvt", wvt_level=4, alpha=None):
 
     if alpha:
         lasso = lm.Lasso(alpha=alpha, max_iter=100000, normalize=True)
-        print "Fit"
+        print ( "Fit" )
         lasso.fit(trans_A, b)
     else:
         lasso_cv = lm.LassoCV(n_jobs=cpu_count(), max_iter=100000,
                               normalize=True)
-        print "Fit"
+        print ("Fit")
         lasso_cv.fit(trans_A, b)
-        print "Alpha: %.6f" % lasso_cv.alpha_
+        print ("Alpha: %.6f" % lasso_cv.alpha_)
         lasso = lm.Lasso(alpha=lasso_cv.alpha_, max_iter=100000,
                          normalize=True)
-        print "Fit"
+        print ("Fit")
         lasso.fit(trans_A, b)
 
     if basis == "wvt":
@@ -170,9 +170,9 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
     img = imread(img_path)
 
     if len(img.shape) > 2:
-        print "Only grayscale supported..."
+        print ("Only grayscale supported...")
         img = np.mean(img, axis=-1)
-        print "... RGB converted to grayscale"
+        print ("... RGB converted to grayscale")
 
     if zoom_rate != 1:
         img = scipy.ndimage.zoom(img, zoom=zoom_rate, order=3)
@@ -184,7 +184,7 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
         img = img[int(np.floor(off[0])): img.shape[0] - int(np.ceil(off[0])),
                   int(np.floor(off[1])): img.shape[1] - int(np.ceil(off[1]))]
 
-        print "Cropped image to: ", img.shape
+        print ("Cropped image to: ", img.shape)
 
         img = img.astype(np.float16) / np.max(img)
 
@@ -209,13 +209,13 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
     r_img[r_img > 255] = 255
 
     rmse = utils.compute_rmse(img, r_img)
-    print "rmse: %.3f" % (rmse)
-    print "Sensing rate: %.3f" % (float(k) / np.product(img.shape))
+    print ("rmse: %.3f" % (rmse))
+    print ("Sensing rate: %.3f" % (float(k) / np.product(img.shape)))
 
     if save_path:
         if save_path.endswith(".png"):
-            imsave(save_path, r_img)
-            imsave(save_path[:-4] + "_true.png", img)
+            imwrite(save_path, r_img)
+            imwrite(save_path[:-4] + "_true.png", img)
         else:
             if alpha is None:
                 alpha_s = "best"
@@ -224,9 +224,9 @@ def sense_main(img_path, zoom_rate=1., k=1000, alpha=None, wvt_level=5,
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
 
-            imsave(save_path + "/rec_k%d_a%s_r%d.png" %
+            imwrite(save_path + "/rec_k%d_a%s_r%d.png" %
                    (k, alpha_s, rmse*10000), r_img)
-            imsave(save_path + "/img_k%d_a%s_r%d.png" %
+            imwrite(save_path + "/img_k%d_a%s_r%d.png" %
                    (k, alpha_s, rmse*10000), img)
     else:
         plt.clf()
@@ -282,7 +282,7 @@ def sense_multiple(img_path, ks, alphas, folder, zoom_rate=1., wvt_level=4,
             params.append([img_path, zoom_rate, k, a, folder, wvt_level,
                            add_noise, basis])
 
-    print "N jobs: %d" % (len(params))
+    print ("N jobs: %d" % (len(params)))
     if n_processes > 1:
         pool = Pool(n_processes)
         pool.map(_sense_thread, params)
@@ -294,8 +294,8 @@ def sense_multiple(img_path, ks, alphas, folder, zoom_rate=1., wvt_level=4,
 
 if __name__ == '__main__':
     if len(sys.argv) not in [3, 4]:
-        print "Usage for parameter swiping: python2 sense.py <path_to_img> " \
-              "<path_to_save_folder> [<basis>]"
+        print ("Usage for parameter swiping: python2 sense.py <path_to_img> " \
+              "<path_to_save_folder> [<basis>]")
     else:
         img_path = sys.argv[1]
         folder = sys.argv[2]
@@ -309,6 +309,8 @@ if __name__ == '__main__':
         ks = [int(ratio*288.**2) for ratio in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25,
                                                0.3, 0.35, 0.4]]
         alphas = np.logspace(-7, 2, num=9)
+        
         sense_multiple(img_path, ks, alphas, folder=folder,
                        basis=basis)
+       
         utils.compute_rmse_folder(folder)

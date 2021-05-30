@@ -79,7 +79,7 @@ def img_signal(img_path, compression_rate=.9, save_path=None, wvt_level=4):
         imsave(save_path + os.path.basename(img_path)[:-4] + "_cropped.png",
                img)
 
-    print "Cropped image to: ", img.shape
+    print ("Cropped image to: ", img.shape)
 
     img_dw = utils.dwt2(img, level=wvt_level)
 
@@ -169,8 +169,8 @@ def explain_regularization(save_path=None):
                            save_path=this_save_path,
                            xlabel="coefficient magnitude",
                            ylabel="density")
-        print key, " - Error: %.5f" % np.sum(np.abs(np.dot(A, xs[key]) - b)), \
-            "Number of nonzero elements: %d" % len(np.nonzero(xs[key])[0])
+        print (key, " - Error: %.5f" % np.sum(np.abs(np.dot(A, xs[key]) - b)), \
+            "Number of nonzero elements: %d" % len(np.nonzero(xs[key])[0]) )
 
 
 def recovery_rmse(save_path=None):

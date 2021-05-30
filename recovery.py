@@ -3,7 +3,7 @@ from multiprocessing import Pool
 from multiprocessing import cpu_count
 import numpy as np
 import os
-from scipy.misc import imread, imsave
+from imageio import imread, imwrite
 import scipy.sparse
 import sklearn.linear_model as lm
 import scipy.ndimage
@@ -25,9 +25,9 @@ def sampling_mask(shape, rate=0.5):
     """
     assert 0 <= rate < 1.
 
-    np.random.seed(42)
-    size = int(np.product(shape))
-    mask = np.zeros(size, dtype=np.bool)
+    np.random.seed( 42 ) # !!!La risposta ad ogni domanda
+    size = int(np.product( shape ) )
+    mask = np.zeros( size, dtype = bool )
     mask[np.random.choice(size, int(size*rate), replace=False)] = True
     return mask.reshape(shape)
 
@@ -49,9 +49,9 @@ def recovery_single(img, mask, basis="dct", wvt_level=3, alpha=None):
     :return: 2d array
         recovered image
     """
-    print "img shape: ", img.shape
+    print ("img shape: ", img.shape)
     img_f = img.flatten()
-    A = np.eye(len(img_f), dtype=np.bool)
+    A = np.eye(len(img_f), dtype=bool)
     print("Build sensing matrix")
     mask_f = mask.flatten()
     for i_px in range(len(img_f)):
@@ -126,15 +126,15 @@ def recover_blocks(img, mask, blocksize=32, wvt_level=3, alpha=None,
     if not n_processes:
         n_processes = cpu_count()
 
-    my_img = np.pad(img, [[blocksize/2, blocksize/2],
-                          [blocksize/2, blocksize/2]], mode="reflect")
-    my_mask = np.pad(mask, [[blocksize/2, blocksize/2],
-                            [blocksize/2, blocksize/2]], mode="reflect")
+    my_img = np.pad(img, [[blocksize//2, blocksize//2],
+                          [blocksize//2, blocksize//2]], mode="reflect")
+    my_mask = np.pad(mask, [[blocksize//2, blocksize//2],
+                            [blocksize//2, blocksize//2]], mode="reflect")
 
     params = []
 
-    for x_pos in range(0, my_img.shape[0]-blocksize/2, blocksize/2):
-        for y_pos in range(0, my_img.shape[1]-blocksize/2, blocksize/2):
+    for x_pos in range(0, my_img.shape[0]-blocksize//2, blocksize//2):
+        for y_pos in range(0, my_img.shape[1]-blocksize//2, blocksize//2):
             params.append([[x_pos, y_pos],
                            my_img[x_pos: x_pos + blocksize,
                                   y_pos: y_pos + blocksize],
@@ -154,16 +154,16 @@ def recover_blocks(img, mask, blocksize=32, wvt_level=3, alpha=None,
     r_img = np.zeros(my_img.shape, dtype=np.float32)
     normalization = np.zeros(my_img.shape, dtype=np.float16)
     for result in results:
-        r_img[result[0][0] + blocksize/4: result[0][0] + blocksize*3/4,
-              result[0][1] + blocksize/4: result[0][1] + blocksize*3/4] += \
-            result[1][blocksize/4: blocksize*3/4, blocksize/4:blocksize*3/4]
-        normalization[result[0][0] + blocksize/4:
-                                            result[0][0] + blocksize*3/4,
-                      result[0][1] + blocksize/4:
-                                            result[0][1] + blocksize*3/4] += 1
+        r_img[result[0][0] + blocksize//4: result[0][0] + blocksize*3//4,
+              result[0][1] + blocksize//4: result[0][1] + blocksize*3//4] += \
+            result[1][blocksize//4: blocksize*3//4, blocksize//4:blocksize*3//4]
+        normalization[result[0][0] + blocksize//4:
+                                            result[0][0] + blocksize*3//4,
+                      result[0][1] + blocksize//4:
+                                            result[0][1] + blocksize*3//4] += 1
 
     r_img /= normalization
-    return r_img[blocksize/2: -blocksize/2, blocksize/2: -blocksize/2]
+    return r_img[blocksize//2: -blocksize//2, blocksize//2: -blocksize//2]
 
 
 def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
@@ -210,9 +210,9 @@ def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
               int(np.floor(off[1])): img.shape[1] - int(np.ceil(off[1]))]
 
     if (3 + wvt_level)**2 > blocksize:
-        print "Blocksize is too small for chosen wavelet level..."
+        print ("Blocksize is too small for chosen wavelet level...")
         wvt_level = int(np.log2(blocksize)) - 3
-        print "... chose %d as wavelet level instead." % wvt_level
+        print ( "... chose %d as wavelet level instead." % wvt_level)
 
     print("Cropped image to: ", img.shape)
 
@@ -235,25 +235,25 @@ def recover_main(img_path, zoom_rate=1., corruption_rate=.1, alpha=None,
 
     if save_path:
         if save_path.endswith(".png"):
-            imsave(save_path, r_img)
-            imsave(save_path[:-4] + "_true.png", d_img)
+            imwrite(save_path, r_img)
+            imwrite(save_path[:-4] + "_true.png", d_img)
         else:
             if not os.path.exists(save_path + "/cr_%d/" % (corruption_rate * 1000)):
                 os.makedirs(save_path + "/cr_%d/" % (corruption_rate * 1000))
             alpha_s = int(alpha * 1e9)
-            imsave(save_path + "/cr_%d/img_%d_%d.png" %
+            imwrite(save_path + "/cr_%d/img_block_size_block_size_%d_lambda_%dx1e-9.png" %
                    (corruption_rate * 1000, blocksize, alpha_s), img)
-            imsave(save_path + "/cr_%d/corrupt_img_%d_%d.png" %
+            imwrite(save_path + "/cr_%d/corrupt_img_block_size_%d_lambda_%dx1e-9.png" %
                    (corruption_rate * 1000, blocksize, alpha_s), d_img)
-            imsave(save_path + "/cr_%d/rec_%d_%d.png" %
+            imwrite(save_path + "/cr_%d/rec_%d_%d.png" %
                    (corruption_rate * 1000, blocksize, alpha_s), r_img)
-            imsave(save_path + "/cr_%d/rec_diff_%d_%d.png" %
+            imwrite(save_path + "/cr_%d/rec_diff_block_size_%d_lambda_%dx1e-9.png" %
                    (corruption_rate * 1000, blocksize, alpha_s),
                    np.abs(img-r_img))
-            imsave(save_path + "/cr_%d/rec_diff_%d_%d_gray.png" %
+            imwrite(save_path + "/cr_%d/rec_diff_block_size_%d_lambda_%dx1e-9_gray.png" %
                    (corruption_rate * 1000, blocksize, alpha_s), img-r_img)
             plotting.plot_img(img-r_img,
-                              save_path + "/cr_%d/rec_diff_%d_%d.png" %
+                              save_path + "/cr_%d/rec_diff_block_size_%d_lambda_%dx1e-9.png" %
                               (corruption_rate * 1000, blocksize, alpha_s))
     else:
         plt.clf()
@@ -285,10 +285,13 @@ if __name__ == "__main__":
         alphas = list(np.logspace(-7, 1, num=20))
         corruption_rates = [i / 10. for i in range(1, 10)] + [.95, .99]
 
-        for cr in corruption_rates:
-            for b in blocksizes:
-                for a in alphas:
-                    recover_main(img_path=img_path, corruption_rate=cr, alpha=a,
-                                 blocksize=b, save_path=save_path)
+        # for cr in corruption_rates:
+        #     for b in blocksizes:
+        #         for a in alphas:
+        #             recover_main(img_path=img_path, corruption_rate=cr, alpha=a,
+        #                          blocksize=b, save_path=save_path)
 
-            utils.compute_rmse_folder(save_path + "/cr_%d/" % cr)
+        recover_main(img_path=img_path, corruption_rate=corruption_rates[3], alpha=alphas[3],
+                        blocksize=blocksizes[0], save_path=save_path)
+
+        utils.compute_rmse_folder(save_path + "/cr_%d" % (corruption_rates[3]*1000))

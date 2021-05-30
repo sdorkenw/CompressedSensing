@@ -2,9 +2,7 @@ import glob
 import numpy as np
 import os
 import pywt
-import scipy.misc
-import scipy.spatial
-import scipy.sparse
+from imageio import imread
 from scipy.fftpack import dct, idct
 
 
@@ -58,8 +56,8 @@ def compute_rmse_folder(folder, start_true="img", start_rec="rec"):
         for path in paths:
             rec_path = os.path.dirname(path) + "/%s" % start_rec + \
                        os.path.basename(path)[len(start_true):]
-            rmse = compute_rmse(scipy.misc.imread(path),
-                                scipy.misc.imread(rec_path))
+            rmse = compute_rmse(imread(path),
+                                imread(rec_path))
             f.write("%s: %.6f\n" % (os.path.basename(path)[4:], rmse))
 
             if rmse < best[0]:
@@ -147,3 +145,26 @@ def idct2(Dimg, t=3):
         image
     """
     return idct(idct(Dimg.T, type=t).T, type=t)
+
+
+def sampling_mask(shape, rate=0.5):
+    """ Creates sampling mask
+
+    :param shape: (int, int)
+        shape of mask
+    :param rate: float
+        ratio of True pixels
+    :return: 2d bool array
+        mask
+    """
+    assert 0 <= rate < 1.
+
+    np.random.seed( 42 ) # !!!La risposta ad ogni domanda
+
+    size = int(np.product( shape ) )
+
+    mask = np.zeros( size, dtype = bool )
+
+    mask[np.random.choice(size, int(size*rate), replace=False)] = True
+
+    return mask.reshape(shape)
